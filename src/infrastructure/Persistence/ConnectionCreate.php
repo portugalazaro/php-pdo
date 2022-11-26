@@ -2,7 +2,7 @@
 
 namespace Alura\Pdo\infrastructure\Persistence;
 
-class ConnectionFactory 
+class ConnectionCreate
 {
 
     public static function  createConnection(): PDO
