@@ -1,7 +1,9 @@
 <?php
 
 require_once "vendor/autoload.php";
-require_once "./conexao.php"; 
+use Alura\Pdo\infrastructure\Persistence\ConnectionCreate;
+
+$pdo = ConnectionCreate::createConnection();
 
 $sql = "DELETE FROM students WHERE id = :id";
 

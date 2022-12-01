@@ -1,29 +1,76 @@
 <?php
 
-use Alura\Pdo\infrastructure\Persistence\ConnectionCreate;
-use Alura\Pdo\Model\Repository\StudentyRepository;
-use Alura\Pdo\Model\Student;
+namespace Alura\Pdo\infrastructure\Repository;
+
+use Alura\Pdo\Domain\Repository\StudentRepository;
+use Alura\Pdo\Domain\Model\Phone;
+use Alura\Pdo\Domain\Model\Student;
+use DateTimeImmutable;
+use PDO;
 
 class PdoRepositoryStudent implements StudentRepository
 {
-    private $connection;
+    private PDO $connection;
 
-    public function __construct()
+    public function __construct(PDO $connection)
     {
-        $this->connection = ConnectionCreate::createConnection();
+        $this->connection = $connection;
     }
 
-    private function allStudent():array
+    public function allStudent():array
     {
         $statement = $this->connection->query("SELECT * FROM students");
 
         return $this->hydrateStudentList($statement);
 
     }
+    
 
-    public function insert(Student $student)
+    private function hydrateStudentList($stmt):array
     {
-        $sql = "INSERT INTO students (name, birt    h_date) VALUES (:name, :birth_date);";
+        $studentListData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $listStudent = [];
+
+        foreach($studentListData as $studentData){
+            $listStudent[] = $student =  new Student(
+                $studentData['id'],
+                $studentData['name'],
+                new DateTimeImmutable($studentData['birth_date'])
+            );
+
+            $this->fillPhonesOf($student);
+        }
+
+        return $listStudent;
+    }
+
+    private function fillPhonesOf(Student $student):void
+    {
+
+        $querySql = "SELECT id, area_code, number FROM phones WHERE student_id = ?";
+        $statement = $this->connection->prepare($querySql);
+        $statement->bindValue(1, $student->id(), PDO::PARAM_INT);
+        $statement->execute();
+
+        $phonesDataList = $statement->fetchAll();
+
+
+        foreach($phonesDataList as $phoneData){
+            $phone = new Phone(
+                $phoneData['id'],
+                $phoneData['area_code'],
+                $phoneData['number']
+            );
+
+            $student->addPhone($phone);
+        }
+        
+    }
+
+
+    public function insert(Student $student):bool
+    {
+        $sql = "INSERT INTO students (name, birth_date) VALUES (:name, :birth_date);";
         $statement = $this->connection->prepare($sql);
 
         return $statement->execute([
@@ -33,26 +80,26 @@ class PdoRepositoryStudent implements StudentRepository
     }
 
     
-    public function studentBirthAt(DateTimeInterface $birthDate):array
+    public function studentBirthAt(\DateTimeInterface $birthDate):array
     {
         $sql = "SELECT * FROM students WHERE birth_date = ?";
         $statement = $this->connection->prepare($sql);
         $statement->bindValue(1, $birthDate->birthDate());
         $statement->execute();
+
+        return [];
     }
 
-
-
-    public function update(Student $student)
+    public function update(Student $student):bool
     {
         $sql = "UPDATE students SET name = :name WHERE id = :id";
         $statement = $this->connection->prepare($sql);
-        $statement->execute(['name'=> $student->name(), 'id' => $student->id()]);
+        return $statement->execute(['name'=> $student->name(), 'id' => $student->id()]);
     }
 
     
     public function save(Student $student):bool
-    {
+    {   
         if($student->id() === NULL){
             return $this->insert($student);
         }
@@ -61,22 +108,7 @@ class PdoRepositoryStudent implements StudentRepository
     }
 
 
-    public function hydrateStudentList(PDOStatement $stmt):array 
-    {
-        $studentListData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $listStudent = [];
 
-
-        foreach($studentListData as $studentData){
-            $studentListData = new Student(
-                $studentData['id'],
-                $studentData['name'],
-                new DateTimeImmutable($studentData['birth_date'])
-            );
-        }
-
-        return $listStudent;
-    }
     
     public function remove(Student $student):bool
     {
