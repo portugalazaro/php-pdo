@@ -17,16 +17,17 @@ class PdoRepositoryStudent implements StudentRepository
         $this->connection = $connection;
     }
 
-    public function allStudent():array
+    public function allStudent()
     {
         $statement = $this->connection->query("SELECT * FROM students");
 
+        // print_r($statement);
         return $this->hydrateStudentList($statement);
 
     }
     
 
-    private function hydrateStudentList($stmt):array
+    private function hydrateStudentList(\PDOStatement $stmt):array
     {
         $studentListData = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $listStudent = [];
