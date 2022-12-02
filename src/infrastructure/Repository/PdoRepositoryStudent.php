@@ -3,8 +3,7 @@
 namespace Alura\Pdo\infrastructure\Repository;
 
 use Alura\Pdo\Domain\Repository\StudentRepository;
-use Alura\Pdo\Domain\Model\Phone;
-use Alura\Pdo\Domain\Model\Student;
+use Alura\Pdo\Domain\Model\{Phone,Student };
 use DateTimeImmutable;
 use PDO;
 
@@ -17,13 +16,10 @@ class PdoRepositoryStudent implements StudentRepository
         $this->connection = $connection;
     }
 
-    public function allStudent()
+    public function allStudent():array
     {
         $statement = $this->connection->query("SELECT * FROM students");
-
-        // print_r($statement);
         return $this->hydrateStudentList($statement);
-
     }
     
 
@@ -33,17 +29,52 @@ class PdoRepositoryStudent implements StudentRepository
         $listStudent = [];
 
         foreach($studentListData as $studentData){
-            $listStudent[] = $student =  new Student(
+            $listStudent[] = new Student(
                 $studentData['id'],
                 $studentData['name'],
                 new DateTimeImmutable($studentData['birth_date'])
             );
-
-            $this->fillPhonesOf($student);
+            // $this->fillPhonesOf($student);
         }
 
         return $listStudent;
     }
+
+
+    public function studentWithPhones()
+    {
+        $sql = "SELECT students.id,
+                    students.name, 
+                    students.birth_date, 
+                    phones.id as phone_id,
+                    phones.area_code,
+                    phones.number            
+                FROM students
+                JOIN phones ON students.id = phones.student_id";
+
+        $statement = $this->connection->query($sql);
+        $result = $statement->fetchAll();
+
+        $studentList = [];
+
+        foreach($result as $row){
+            if(!array_key_exists($row['id'], $studentList)) {
+
+                $studentList[$row['id']] = new Student(
+                    $row['id'],
+                    $row['name'],
+                    new DateTimeImmutable("199-12-30")
+                );
+            }
+
+            $phone = new Phone($row['phone_id'], $row['area_code'], $row['number']);
+            $studentList[$row['id']]->addPhone($phone);
+        }
+
+        return $studentList;
+    }
+
+
 
     private function fillPhonesOf(Student $student):void
     {
@@ -107,8 +138,6 @@ class PdoRepositoryStudent implements StudentRepository
 
         return $this->update($student);
     }
-
-
 
     
     public function remove(Student $student):bool
